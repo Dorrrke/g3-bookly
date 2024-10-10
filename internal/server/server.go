@@ -4,7 +4,9 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/Dorrrke/g3-bookly/internal/config"
 	"github.com/Dorrrke/g3-bookly/internal/domain/models"
+	"github.com/Dorrrke/g3-bookly/internal/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
 )
@@ -21,16 +23,16 @@ type Server struct {
 	storage Storage
 }
 
-func New(addr string) *Server {
+func New(cfg config.Config) *Server {
 	server := http.Server{
-		Addr: addr,
+		Addr: cfg.Addr,
 	}
 	valid := validator.New()
 	return &Server{serv: &server, valid: valid}
 }
 
 func (s *Server) Run() error {
-	//log := logger.Get()
+	log := logger.Get()
 	router := gin.Default()
 	router.GET("/", func(ctx *gin.Context) { ctx.String(200, "Hello") })
 	users := router.Group("/users")
@@ -50,7 +52,7 @@ func (s *Server) Run() error {
 
 	s.serv.Handler = router
 
-	//log.Info().Str("host", s.serv.Addr).Msg("server started")
+	log.Info().Str("host", s.serv.Addr).Msg("server started")
 	if err := s.serv.ListenAndServe(); err != nil {
 		return err
 	}
@@ -62,44 +64,44 @@ func (s *Server) Close() {
 }
 
 func (s *Server) register(ctx *gin.Context) {
-	//log := logger.Get()
+	log := logger.Get()
 	var user models.User
 	if err := ctx.ShouldBindBodyWithJSON(&user); err != nil {
-		//log.Error().Err(err).Msg("unmarshal body failed")
+		log.Error().Err(err).Msg("unmarshal body failed")
 		ctx.String(http.StatusBadRequest, "incorrectly entered data")
 		return
 	}
 	if err := s.valid.Struct(user); err != nil {
-		//log.Error().Err(err).Msg("validate user failed")
+		log.Error().Err(err).Msg("validate user failed")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	uuid, err := s.storage.SaveUser(user)
 	if err != nil {
-		//log.Error().Err(err).Msg("save user failed")
+		log.Error().Err(err).Msg("save user failed")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	//log.Debug().Str("uuid", uuid).Send()
+	log.Debug().Str("uuid", uuid).Send()
 	ctx.String(http.StatusCreated, uuid)
 }
 
 func (s *Server) login(ctx *gin.Context) {
-	//log := logger.Get()
+	log := logger.Get()
 	var user models.User
 	if err := ctx.ShouldBindBodyWithJSON(&user); err != nil {
-		//log.Error().Err(err).Msg("unmarshal body failed")
+		log.Error().Err(err).Msg("unmarshal body failed")
 		ctx.String(http.StatusBadRequest, "incorrectly entered data")
 		return
 	}
 	if err := s.valid.Struct(user); err != nil {
-		//log.Error().Err(err).Msg("validate user failed")
+		log.Error().Err(err).Msg("validate user failed")
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 	uuid, err := s.storage.ValidUser(user)
 	if err != nil {
-		//log.Error().Err(err).Msg("validate user failed")
+		log.Error().Err(err).Msg("validate user failed")
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
 	}
@@ -116,15 +118,15 @@ func (s *Server) bookInfo(ctx *gin.Context) {}
 func (s *Server) getBook(ctx *gin.Context) {}
 
 func (s *Server) addBook(ctx *gin.Context) {
-	//log := logger.Get()
+	log := logger.Get()
 	var book models.Book
 	if err := ctx.ShouldBindBodyWithJSON(&book); err != nil {
-		//log.Error().Err(err).Msg("unmarshal body failed")
+		log.Error().Err(err).Msg("unmarshal body failed")
 		ctx.String(http.StatusBadRequest, "incorrectly entered data")
 		return
 	}
 	if err := s.storage.SaveBook(book); err != nil {
-		//log.Error().Err(err).Msg("save user failed")
+		log.Error().Err(err).Msg("save user failed")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
