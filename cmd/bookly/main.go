@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/Dorrrke/g3-bookly/internal/config"
-	"github.com/Dorrrke/g3-bookly/internal/logger"
-	"github.com/Dorrrke/g3-bookly/internal/server"
+	"g3-bookly/internal/config"
+	"g3-bookly/internal/logger"
+	"g3-bookly/internal/server"
+	"g3-bookly/internal/storage"
 )
 
 func main() {
@@ -11,7 +12,9 @@ func main() {
 	log := logger.Get(cfg.Debug)
 	log.Debug().Any("cfg", cfg).Send()
 
-	serv := server.New(*cfg)
+	stor := storage.New()
+
+	serv := server.New(*cfg, stor)
 	err := serv.Run()
 	if err != nil {
 		log.Fatal().Err(err).Msg("server fatal error")

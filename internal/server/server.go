@@ -2,11 +2,11 @@ package server
 
 import (
 	"context"
+	"g3-bookly/internal/config"
+	"g3-bookly/internal/domain/models"
+	"g3-bookly/internal/logger"
 	"net/http"
 
-	"github.com/Dorrrke/g3-bookly/internal/config"
-	"github.com/Dorrrke/g3-bookly/internal/domain/models"
-	"github.com/Dorrrke/g3-bookly/internal/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
 )
@@ -23,12 +23,12 @@ type Server struct {
 	storage Storage
 }
 
-func New(cfg config.Config) *Server {
+func New(cfg config.Config, stor Storage) *Server {
 	server := http.Server{
 		Addr: cfg.Addr,
 	}
 	valid := validator.New()
-	return &Server{serv: &server, valid: valid}
+	return &Server{serv: &server, valid: valid, storage: stor}
 }
 
 func (s *Server) Run() error {
