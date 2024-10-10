@@ -1,15 +1,20 @@
 package main
 
 import (
+	"github.com/Dorrrke/g3-bookly/internal/config"
+	"github.com/Dorrrke/g3-bookly/internal/logger"
 	"github.com/Dorrrke/g3-bookly/internal/server"
 )
 
 func main() {
-	serv := server.New(":8080")
+	cfg := config.ReadConfig()
+	log := logger.Get(cfg.Debug)
+	log.Debug().Any("cfg", cfg).Send()
+
+	serv := server.New(*cfg)
 	err := serv.Run()
 	if err != nil {
-		panic(err)
-		//log.Fatal().Err(err).Msg("server fatal error")
+		log.Fatal().Err(err).Msg("server fatal error")
 	}
-	//log.Info().Msg("server stoped")
+	log.Info().Msg("server stoped")
 }
