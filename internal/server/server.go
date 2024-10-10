@@ -2,11 +2,14 @@ package server
 
 import (
 	"context"
-	"g3-bookly/internal/config"
-	"g3-bookly/internal/domain/models"
-	"g3-bookly/internal/logger"
+	"errors"
+
 	"net/http"
 
+	"github.com/Dorrrke/g3-bookly/internal/config"
+	"github.com/Dorrrke/g3-bookly/internal/domain/models"
+	"github.com/Dorrrke/g3-bookly/internal/logger"
+	storerrros "github.com/Dorrrke/g3-bookly/internal/storage/errros"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
 )
@@ -15,6 +18,9 @@ type Storage interface {
 	SaveUser(models.User) (string, error)
 	ValidUser(models.User) (string, error)
 	SaveBook(models.Book) error
+	GetUser(string) (models.User, error)
+	GetBooks() ([]models.Book, error)
+	GetBook(string) (models.Book, error)
 }
 
 type Server struct {
@@ -46,7 +52,6 @@ func (s *Server) Run() error {
 		books.GET("/", s.allBooks)
 		books.GET("/:id", s.bookInfo)
 	}
-	router.POST("/get-book", s.getBook)
 	router.POST("/add-book", s.addBook)
 	router.POST("/book-return", s.bookReturn)
 
@@ -78,6 +83,11 @@ func (s *Server) register(ctx *gin.Context) {
 	}
 	uuid, err := s.storage.SaveUser(user)
 	if err != nil {
+		if errors.Is(err, storerrros.ErrUserExists) {
+			log.Error().Msg(err.Error())
+			ctx.String(http.StatusConflict, err.Error())
+			return
+		}
 		log.Error().Err(err).Msg("save user failed")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -101,21 +111,68 @@ func (s *Server) login(ctx *gin.Context) {
 	}
 	uuid, err := s.storage.ValidUser(user)
 	if err != nil {
+		if errors.Is(err, storerrros.ErrUserNoExist) {
+			log.Error().Err(err).Msg("user not found")
+			ctx.String(http.StatusNotFound, "invalid login or password: %w", err)
+			return
+		}
+		if errors.Is(err, storerrros.ErrInvalidPassword) {
+			log.Error().Err(err).Msg("invalid pass")
+			ctx.String(http.StatusUnauthorized, err.Error())
+			return
+		}
 		log.Error().Err(err).Msg("validate user failed")
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
 	ctx.String(200, "user %s are logined", uuid)
 }
 
-func (s *Server) userInfo(ctx *gin.Context) {}
+func (s *Server) userInfo(ctx *gin.Context) {
+	// TODO: Должно быть возможно, только
+	// TODO:       при наличии токена ( когда юзер вошел в систему )
+	id := ctx.Param("id")
+	user, err := s.storage.GetUser(id)
+	if err != nil {
+		if errors.Is(err, storerrros.ErrUserNotFound) {
+			ctx.String(http.StatusNotFound, err.Error())
+			return
+		}
+		ctx.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	ctx.JSON(http.StatusFound, user)
+}
 
-func (s *Server) allBooks(ctx *gin.Context) {}
+func (s *Server) allBooks(ctx *gin.Context) {
+	books, err := s.storage.GetBooks()
+	if err != nil {
+		if errors.Is(err, storerrros.ErrEmptyBooksList) {
+			ctx.String(http.StatusNotFound, err.Error())
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, books)
+}
 
-func (s *Server) bookInfo(ctx *gin.Context) {}
-
-func (s *Server) getBook(ctx *gin.Context) {}
+func (s *Server) bookInfo(ctx *gin.Context) {
+	// TODO: Должно быть возможно, только
+	// TODO:       при наличии токена ( когда юзер вошел в систему )
+	id := ctx.Param("id")
+	book, err := s.storage.GetBook(id)
+	if err != nil {
+		if errors.Is(err, storerrros.ErrBookNoExist) {
+			ctx.String(http.StatusNotFound, err.Error())
+			return
+		}
+		ctx.String(http.StatusInternalServerError, err.Error())
+		return
+	}
+	ctx.JSON(http.StatusFound, book)
+}
 
 func (s *Server) addBook(ctx *gin.Context) {
 	log := logger.Get()

@@ -1,9 +1,9 @@
 package storage
 
 import (
-	"errors"
-
 	"github.com/Dorrrke/g3-bookly/internal/domain/models"
+	"github.com/Dorrrke/g3-bookly/internal/logger"
+	storerrros "github.com/Dorrrke/g3-bookly/internal/storage/errros"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -21,34 +21,45 @@ func New() *MemStorage {
 }
 
 func (ms *MemStorage) SaveUser(user models.User) (string, error) {
-	//log := //logger.Get()
+	log := logger.Get()
 	uuid := uuid.New().String()
 	if _, err := ms.findUser(user.Email); err == nil {
-		return "", errors.New("user alredy exists")
+		return "", storerrros.ErrUserExists
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(user.Pass), bcrypt.DefaultCost)
 	if err != nil {
-		//log.Error().Err(err).Msg("save user failed")
+		log.Error().Err(err).Msg("save user failed")
 		return "", err
 	}
-	//log.Debug().Str("hash", string(hash)).Send()
+	log.Debug().Str("hash", string(hash)).Send()
 	user.Pass = string(hash)
 	user.UID = uuid
 	ms.usersStor[uuid] = user
-	//log.Debug().Any("storage", ms.usersStor).Send()
+	log.Debug().Any("storage", ms.usersStor).Send()
 	return uuid, nil
 }
+
 func (ms *MemStorage) ValidUser(user models.User) (string, error) {
-	//log := //logger.Get()
-	//log.Debug().Any("storage", ms.usersStor).Send()
+	log := logger.Get()
+	log.Debug().Any("storage", ms.usersStor).Send()
 	memUser, err := ms.findUser(user.Email)
 	if err != nil {
 		return "", err
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(memUser.Pass), []byte(user.Pass)); err != nil {
-		return "", errors.New("invalid password")
+		return "", storerrros.ErrInvalidPassword
 	}
 	return memUser.UID, nil
+}
+
+func (ms *MemStorage) GetUser(uid string) (models.User, error) {
+	log := logger.Get()
+	user, ok := ms.usersStor[uid]
+	if !ok {
+		log.Error().Str("uid", uid).Msg("user not found")
+		return models.User{}, storerrros.ErrUserNotFound
+	}
+	return user, nil
 }
 
 func (ms *MemStorage) SaveBook(book models.Book) error {
@@ -64,13 +75,34 @@ func (ms *MemStorage) SaveBook(book models.Book) error {
 	return nil
 }
 
+func (ms *MemStorage) GetBooks() ([]models.Book, error) {
+	var books []models.Book
+	for _, book := range ms.bookStor {
+		books = append(books, book)
+	}
+	if len(books) < 1 {
+		return nil, storerrros.ErrEmptyBooksList
+	}
+	return books, nil
+}
+
+func (ms *MemStorage) GetBook(bid string) (models.Book, error) {
+	log := logger.Get()
+	book, ok := ms.bookStor[bid]
+	if !ok {
+		log.Error().Str("bid", bid).Msg("user not found")
+		return models.Book{}, storerrros.ErrBookNoExist
+	}
+	return book, nil
+}
+
 func (ms *MemStorage) findUser(login string) (models.User, error) {
 	for _, user := range ms.usersStor {
 		if user.Email == login {
 			return user, nil
 		}
 	}
-	return models.User{}, errors.New("user does not exists")
+	return models.User{}, storerrros.ErrUserNoExist
 }
 
 func (ms *MemStorage) findBook(value models.Book) (models.Book, error) {
@@ -79,5 +111,5 @@ func (ms *MemStorage) findBook(value models.Book) (models.Book, error) {
 			return book, nil
 		}
 	}
-	return models.Book{}, errors.New("book does not exists")
+	return models.Book{}, storerrros.ErrBookNoExist
 }
