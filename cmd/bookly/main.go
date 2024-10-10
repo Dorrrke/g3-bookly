@@ -1,10 +1,10 @@
 package main
 
 import (
-	"g3-bookly/internal/config"
-	"g3-bookly/internal/logger"
-	"g3-bookly/internal/server"
-	"g3-bookly/internal/storage"
+	"github.com/Dorrrke/g3-bookly/internal/config"
+	"github.com/Dorrrke/g3-bookly/internal/logger"
+	"github.com/Dorrrke/g3-bookly/internal/server"
+	"github.com/Dorrrke/g3-bookly/internal/storage"
 )
 
 func main() {
