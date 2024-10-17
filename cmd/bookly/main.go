@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"log"
 
 	"github.com/Dorrrke/g3-bookly/internal/config"
 	"github.com/Dorrrke/g3-bookly/internal/logger"
@@ -10,7 +11,10 @@ import (
 )
 
 func main() {
-	cfg := config.ReadConfig()
+	cfg, err := config.ReadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 	log := logger.Get(cfg.Debug)
 	log.Debug().Any("cfg", cfg).Send()
 	var stor server.Storage
@@ -18,7 +22,7 @@ func main() {
 	if err := storage.Migrations(cfg.DBDsn, cfg.MigratePath); err != nil {
 		log.Fatal().Err(err).Msg("migrations failed")
 	}
-	stor, err := storage.NewDB(context.TODO(), cfg.DBDsn)
+	stor, err = storage.NewDB(context.TODO(), cfg.DBDsn)
 	if err != nil {
 		log.Error().Err(err).Msg("connecting to data base failed")
 		stor = storage.New()

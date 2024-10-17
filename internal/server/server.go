@@ -18,6 +18,7 @@ type Storage interface {
 	SaveUser(models.User) (string, error)
 	ValidUser(models.User) (string, error)
 	SaveBook(models.Book) error
+	SaveBooks([]models.Book) error
 	GetUser(string) (models.User, error)
 	GetBooks() ([]models.Book, error)
 	GetBook(string) (models.Book, error)
@@ -43,16 +44,17 @@ func (s *Server) Run() error {
 	router.GET("/", func(ctx *gin.Context) { ctx.String(200, "Hello") })
 	users := router.Group("/users")
 	{
+		users.GET("/:id/info", s.userInfo)
 		users.POST("/register", s.register)
 		users.POST("/login", s.login)
-		users.GET("/:id", s.userInfo)
 	}
 	books := router.Group("/books")
 	{
-		books.GET("/", s.allBooks)
 		books.GET("/:id", s.bookInfo)
+		books.GET("/", s.allBooks)
 	}
 	router.POST("/add-book", s.addBook)
+	router.POST("/add-books", s.addBooks)
 	router.POST("/book-return", s.bookReturn)
 
 	s.serv.Handler = router
@@ -182,12 +184,29 @@ func (s *Server) addBook(ctx *gin.Context) {
 		ctx.String(http.StatusBadRequest, "incorrectly entered data")
 		return
 	}
+	book.Count = 1
 	if err := s.storage.SaveBook(book); err != nil {
 		log.Error().Err(err).Msg("save user failed")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	ctx.String(http.StatusOK, "book %s %s was added", book.Author, book.Lable)
+}
+
+func (s *Server) addBooks(ctx *gin.Context) {
+	log := logger.Get()
+	var books []models.Book
+	if err := ctx.ShouldBindBodyWithJSON(&books); err != nil {
+		log.Error().Err(err).Msg("unmarshal body failed")
+		ctx.String(http.StatusBadRequest, "incorrectly entered data")
+		return
+	}
+	if err := s.storage.SaveBooks(books); err != nil {
+		log.Error().Err(err).Msg("save user failed")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.String(http.StatusOK, "%s books was added", len(books))
 }
 
 func (s *Server) bookReturn(ctx *gin.Context) {}
