@@ -75,6 +75,10 @@ func (ms *MemStorage) SaveBook(book models.Book) error {
 	return nil
 }
 
+func (ms *MemStorage) SaveBooks(books []models.Book) error {
+	return nil
+}
+
 func (ms *MemStorage) GetBooks() ([]models.Book, error) {
 	var books []models.Book
 	for _, book := range ms.bookStor {
