@@ -38,6 +38,10 @@ func New(cfg config.Config, stor Storage) *Server {
 	return &Server{serv: &server, valid: valid, storage: stor}
 }
 
+func (s *Server) ShutdownServer() error {
+	return s.serv.Shutdown(context.Background())
+}
+
 func (s *Server) Run() error {
 	log := logger.Get()
 	router := gin.Default()
