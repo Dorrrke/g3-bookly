@@ -187,7 +187,7 @@ func (dbs *DBStorage) GetBooks() ([]models.Book, error) {
 	log := logger.Get()
 	ctx, cancel := context.WithTimeout(context.Background(), consts.DBCtxTimeout)
 	defer cancel()
-	rows, err := dbs.conn.Query(ctx, "SELECT * FROM books")
+	rows, err := dbs.conn.Query(ctx, "SELECT * FROM books WHERE deleted=false")
 	if err != nil {
 		log.Error().Err(err).Msg("failed get all books from db")
 		return nil, err
@@ -208,13 +208,42 @@ func (dbs *DBStorage) GetBook(bid string) (models.Book, error) {
 	log := logger.Get()
 	ctx, cancel := context.WithTimeout(context.Background(), consts.DBCtxTimeout)
 	defer cancel()
-	row := dbs.conn.QueryRow(ctx, "SELECT * FROM books WHERE bid = $1", bid)
+	row := dbs.conn.QueryRow(ctx, "SELECT * FROM books WHERE bid = $1 AND deleted=false", bid)
 	var book models.Book
 	if err := row.Scan(&book.BID, &book.Lable, &book.Author, &book.Desc, &book.Age, &book.Count); err != nil {
 		log.Error().Err(err).Msg("failed to scan data from db")
 		return models.Book{}, err
 	}
 	return book, nil
+}
+
+func (dbs *DBStorage) SetDeleteStatus(bid string) error {
+	log := logger.Get()
+	ctx, cancel := context.WithTimeout(context.Background(), consts.DBCtxTimeout)
+	defer cancel()
+	_, err := dbs.conn.Exec(ctx, "UPDATE books SET deleted=true WHERE bid=$1", bid)
+	if err != nil {
+		log.Error().Msg("set deleted status failed")
+		return err
+	}
+	return nil
+}
+
+func (dbs *DBStorage) DeleteBooks() error {
+	log := logger.Get()
+	ctx, cancel := context.WithTimeout(context.Background(), consts.DBCtxTimeout)
+	defer cancel()
+	tx, err := dbs.conn.Begin(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to start tx")
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err = tx.Exec(ctx, "DELETE FROM books WHERE deleted=true"); err != nil {
+		log.Error().Err(err).Msg("delete books failed")
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func Migrations(dbDsn string, migrationsPath string) error {

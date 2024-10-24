@@ -3,16 +3,26 @@ package server
 import (
 	"context"
 	"errors"
+	"time"
 
 	"net/http"
 
 	"github.com/Dorrrke/g3-bookly/internal/config"
 	"github.com/Dorrrke/g3-bookly/internal/domain/models"
 	"github.com/Dorrrke/g3-bookly/internal/logger"
-	storerrros "github.com/Dorrrke/g3-bookly/internal/storage/errros"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
+	"github.com/golang-jwt/jwt/v4"
 )
+
+var SecretKey = "VerySecurKey2000Cat"
+
+var ErrInvalidToken = errors.New("invalid token")
+
+type Claims struct {
+	jwt.RegisteredClaims
+	UserID string
+}
 
 type Storage interface {
 	SaveUser(models.User) (string, error)
@@ -44,13 +54,14 @@ func (s *Server) Run() error {
 	router.GET("/", func(ctx *gin.Context) { ctx.String(200, "Hello") })
 	users := router.Group("/users")
 	{
-		users.GET("/:id/info", s.userInfo)
+		users.GET("/info", s.userInfo)
 		users.POST("/register", s.register)
 		users.POST("/login", s.login)
 	}
 	books := router.Group("/books")
 	{
 		books.GET("/:id", s.bookInfo)
+		books.GET("/:id/remove", s.removeBook)
 		books.GET("/", s.allBooks)
 	}
 	router.POST("/add-book", s.addBook)
@@ -70,143 +81,31 @@ func (s *Server) Close() {
 	s.serv.Shutdown(context.TODO())
 }
 
-func (s *Server) register(ctx *gin.Context) {
-	log := logger.Get()
-	var user models.User
-	if err := ctx.ShouldBindBodyWithJSON(&user); err != nil {
-		log.Error().Err(err).Msg("unmarshal body failed")
-		ctx.String(http.StatusBadRequest, "incorrectly entered data")
-		return
-	}
-	if err := s.valid.Struct(user); err != nil {
-		log.Error().Err(err).Msg("validate user failed")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	uuid, err := s.storage.SaveUser(user)
+func (s *Server) createJWTToken(uid string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
+		},
+		UserID: uid,
+	})
+	key := []byte(SecretKey)
+	tokenStr, err := token.SignedString(key)
 	if err != nil {
-		if errors.Is(err, storerrros.ErrUserExists) {
-			log.Error().Msg(err.Error())
-			ctx.String(http.StatusConflict, err.Error())
-			return
-		}
-		log.Error().Err(err).Msg("save user failed")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return "", err
 	}
-	log.Debug().Str("uuid", uuid).Send()
-	ctx.String(http.StatusCreated, uuid)
+	return tokenStr, nil
 }
 
-func (s *Server) login(ctx *gin.Context) {
-	log := logger.Get()
-	var user models.User
-	if err := ctx.ShouldBindBodyWithJSON(&user); err != nil {
-		log.Error().Err(err).Msg("unmarshal body failed")
-		ctx.String(http.StatusBadRequest, "incorrectly entered data")
-		return
-	}
-	if err := s.valid.Struct(user); err != nil {
-		log.Error().Err(err).Msg("validate user failed")
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-	uuid, err := s.storage.ValidUser(user)
+func validToken(tokenStr string) (string, error) {
+	claims := &Claims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
+		return []byte(SecretKey), nil
+	})
 	if err != nil {
-		if errors.Is(err, storerrros.ErrUserNoExist) {
-			log.Error().Err(err).Msg("user not found")
-			ctx.String(http.StatusNotFound, "invalid login or password: %w", err)
-			return
-		}
-		if errors.Is(err, storerrros.ErrInvalidPassword) {
-			log.Error().Err(err).Msg("invalid pass")
-			ctx.String(http.StatusUnauthorized, err.Error())
-			return
-		}
-		log.Error().Err(err).Msg("validate user failed")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
+		return "", err
 	}
-
-	ctx.String(200, "user %s are logined", uuid)
+	if !token.Valid {
+		return "", ErrInvalidToken
+	}
+	return claims.UserID, nil
 }
-
-func (s *Server) userInfo(ctx *gin.Context) {
-	// TODO: Должно быть возможно, только
-	// TODO:       при наличии токена ( когда юзер вошел в систему )
-	id := ctx.Param("id")
-	user, err := s.storage.GetUser(id)
-	if err != nil {
-		if errors.Is(err, storerrros.ErrUserNotFound) {
-			ctx.String(http.StatusNotFound, err.Error())
-			return
-		}
-		ctx.String(http.StatusInternalServerError, err.Error())
-		return
-	}
-	ctx.JSON(http.StatusFound, user)
-}
-
-func (s *Server) allBooks(ctx *gin.Context) {
-	books, err := s.storage.GetBooks()
-	if err != nil {
-		if errors.Is(err, storerrros.ErrEmptyBooksList) {
-			ctx.String(http.StatusNotFound, err.Error())
-			return
-		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	ctx.JSON(http.StatusOK, books)
-}
-
-func (s *Server) bookInfo(ctx *gin.Context) {
-	// TODO: Должно быть возможно, только
-	// TODO:       при наличии токена ( когда юзер вошел в систему )
-	id := ctx.Param("id")
-	book, err := s.storage.GetBook(id)
-	if err != nil {
-		if errors.Is(err, storerrros.ErrBookNoExist) {
-			ctx.String(http.StatusNotFound, err.Error())
-			return
-		}
-		ctx.String(http.StatusInternalServerError, err.Error())
-		return
-	}
-	ctx.JSON(http.StatusFound, book)
-}
-
-func (s *Server) addBook(ctx *gin.Context) {
-	log := logger.Get()
-	var book models.Book
-	if err := ctx.ShouldBindBodyWithJSON(&book); err != nil {
-		log.Error().Err(err).Msg("unmarshal body failed")
-		ctx.String(http.StatusBadRequest, "incorrectly entered data")
-		return
-	}
-	book.Count = 1
-	if err := s.storage.SaveBook(book); err != nil {
-		log.Error().Err(err).Msg("save user failed")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	ctx.String(http.StatusOK, "book %s %s was added", book.Author, book.Lable)
-}
-
-func (s *Server) addBooks(ctx *gin.Context) {
-	log := logger.Get()
-	var books []models.Book
-	if err := ctx.ShouldBindBodyWithJSON(&books); err != nil {
-		log.Error().Err(err).Msg("unmarshal body failed")
-		ctx.String(http.StatusBadRequest, "incorrectly entered data")
-		return
-	}
-	if err := s.storage.SaveBooks(books); err != nil {
-		log.Error().Err(err).Msg("save user failed")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	ctx.String(http.StatusOK, "%s books was added", len(books))
-}
-
-func (s *Server) bookReturn(ctx *gin.Context) {}
