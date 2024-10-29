@@ -12,15 +12,10 @@ import (
 
 func (s *Server) allBooks(ctx *gin.Context) {
 	log := logger.Get()
-	toketn := ctx.GetHeader("Authorization")
-	if toketn == "" {
-		ctx.String(http.StatusUnauthorized, "invalid token")
-		return
-	}
-	_, err := validToken(toketn)
-	if err != nil {
-		log.Error().Err(err).Msg("validate jwt failed")
-		ctx.String(http.StatusUnauthorized, "invalid token")
+	_, exist := ctx.Get("uid")
+	if !exist {
+		log.Error().Msg("user ID not found")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "User ID not found"})
 		return
 	}
 	books, err := s.storage.GetBooks()
@@ -37,15 +32,10 @@ func (s *Server) allBooks(ctx *gin.Context) {
 
 func (s *Server) bookInfo(ctx *gin.Context) {
 	log := logger.Get()
-	toketn := ctx.GetHeader("Authorization")
-	if toketn == "" {
-		ctx.String(http.StatusUnauthorized, "invalid token")
-		return
-	}
-	_, err := validToken(toketn)
-	if err != nil {
-		log.Error().Err(err).Msg("validate jwt failed")
-		ctx.String(http.StatusUnauthorized, "invalid token")
+	_, exist := ctx.Get("uid")
+	if !exist {
+		log.Error().Msg("user ID not found")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "User ID not found"})
 		return
 	}
 	id := ctx.Param("id")
@@ -63,15 +53,10 @@ func (s *Server) bookInfo(ctx *gin.Context) {
 
 func (s *Server) addBook(ctx *gin.Context) {
 	log := logger.Get()
-	toketn := ctx.GetHeader("Authorization")
-	if toketn == "" {
-		ctx.String(http.StatusUnauthorized, "invalid token")
-		return
-	}
-	_, err := validToken(toketn)
-	if err != nil {
-		log.Error().Err(err).Msg("validate jwt failed")
-		ctx.String(http.StatusUnauthorized, "invalid token")
+	_, exist := ctx.Get("uid")
+	if !exist {
+		log.Error().Msg("user ID not found")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "User ID not found"})
 		return
 	}
 	var book models.Book
@@ -91,15 +76,10 @@ func (s *Server) addBook(ctx *gin.Context) {
 
 func (s *Server) addBooks(ctx *gin.Context) {
 	log := logger.Get()
-	toketn := ctx.GetHeader("Authorization")
-	if toketn == "" {
-		ctx.String(http.StatusUnauthorized, "invalid token")
-		return
-	}
-	_, err := validToken(toketn)
-	if err != nil {
-		log.Error().Err(err).Msg("validate jwt failed")
-		ctx.String(http.StatusUnauthorized, "invalid token")
+	_, exist := ctx.Get("uid")
+	if !exist {
+		log.Error().Msg("user ID not found")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "User ID not found"})
 		return
 	}
 	var books []models.Book
@@ -118,15 +98,10 @@ func (s *Server) addBooks(ctx *gin.Context) {
 
 func (s *Server) removeBook(ctx *gin.Context) {
 	log := logger.Get()
-	toketn := ctx.GetHeader("Authorization")
-	if toketn == "" {
-		ctx.String(http.StatusUnauthorized, "invalid token")
-		return
-	}
-	_, err := validToken(toketn)
-	if err != nil {
-		log.Error().Err(err).Msg("validate jwt failed")
-		ctx.String(http.StatusUnauthorized, "invalid token")
+	_, exist := ctx.Get("uid")
+	if !exist {
+		log.Error().Msg("user ID not found")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "User ID not found"})
 		return
 	}
 	id := ctx.Param("id")

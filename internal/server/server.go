@@ -54,19 +54,19 @@ func (s *Server) Run() error {
 	router.GET("/", func(ctx *gin.Context) { ctx.String(200, "Hello") })
 	users := router.Group("/users")
 	{
-		users.GET("/info", s.userInfo)
+		users.GET("/info", s.JWTAuthMiddleware(), s.userInfo)
 		users.POST("/register", s.register)
 		users.POST("/login", s.login)
 	}
 	books := router.Group("/books")
 	{
-		books.GET("/:id", s.bookInfo)
-		books.GET("/:id/remove", s.removeBook)
-		books.GET("/", s.allBooks)
+		books.GET("/:id", s.JWTAuthMiddleware(), s.bookInfo)
+		books.GET("/:id/remove", s.JWTAuthMiddleware(), s.removeBook)
+		books.GET("/", s.JWTAuthMiddleware(), s.allBooks)
 	}
-	router.POST("/add-book", s.addBook)
-	router.POST("/add-books", s.addBooks)
-	router.POST("/book-return", s.bookReturn)
+	router.POST("/add-book", s.JWTAuthMiddleware(), s.addBook)
+	router.POST("/add-books", s.JWTAuthMiddleware(), s.addBooks)
+	router.POST("/book-return", s.JWTAuthMiddleware(), s.bookReturn)
 
 	s.serv.Handler = router
 
@@ -79,6 +79,25 @@ func (s *Server) Run() error {
 
 func (s *Server) Close() {
 	s.serv.Shutdown(context.TODO())
+}
+
+func (s *Server) JWTAuthMiddleware() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		log := logger.Get()
+		toketn := ctx.GetHeader("Authorization")
+		if toketn == "" {
+			ctx.String(http.StatusUnauthorized, "invalid token")
+			return
+		}
+		UID, err := validToken(toketn)
+		if err != nil {
+			log.Error().Err(err).Msg("validate jwt failed")
+			ctx.String(http.StatusUnauthorized, "invalid token")
+			return
+		}
+		ctx.Set("uid", UID)
+		ctx.Next()
+	}
 }
 
 func (s *Server) createJWTToken(uid string) (string, error) {

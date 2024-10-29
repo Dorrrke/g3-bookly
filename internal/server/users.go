@@ -86,19 +86,15 @@ func (s *Server) login(ctx *gin.Context) {
 
 func (s *Server) userInfo(ctx *gin.Context) {
 	log := logger.Get()
-	toketn := ctx.GetHeader("Authorization")
-	if toketn == "" {
-		ctx.String(http.StatusUnauthorized, "invalid token")
-		return
-	}
-	uid, err := validToken(toketn)
-	if err != nil {
-		log.Error().Err(err).Msg("validate jwt failed")
-		ctx.String(http.StatusUnauthorized, "invalid token")
-		return
-	}
+	uid := ctx.GetString("uid")
+	// if !exist {
+	// 	log.Error().Msg("user ID not found")
+	// 	ctx.JSON(http.StatusInternalServerError, gin.H{"error": "User ID not found"})
+	// 	return
+	// }
 	user, err := s.storage.GetUser(uid)
 	if err != nil {
+		log.Error().Err(err).Msg("failed get user from db")
 		if errors.Is(err, storerrros.ErrUserNotFound) {
 			ctx.String(http.StatusNotFound, err.Error())
 			return
