@@ -32,12 +32,16 @@ type Storage interface {
 	GetUser(string) (models.User, error)
 	GetBooks() ([]models.Book, error)
 	GetBook(string) (models.Book, error)
+	SetDeleteStatus(string) error
+	DeleteBooks() error
 }
 
 type Server struct {
 	serv    *http.Server
 	valid   *validator.Validate
 	storage Storage
+	delChan chan struct{}
+	ErrChan chan error
 }
 
 func New(cfg config.Config, stor Storage) *Server {
@@ -45,7 +49,13 @@ func New(cfg config.Config, stor Storage) *Server {
 		Addr: cfg.Addr,
 	}
 	valid := validator.New()
-	return &Server{serv: &server, valid: valid, storage: stor}
+	return &Server{
+		serv:    &server,
+		valid:   valid,
+		storage: stor,
+		delChan: make(chan struct{}, 10),
+		ErrChan: make(chan error),
+	}
 }
 
 func (s *Server) Run() error {

@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -105,9 +106,38 @@ func (s *Server) removeBook(ctx *gin.Context) {
 		return
 	}
 	id := ctx.Param("id")
-	// TODO: отправляем книгу в канал на удаление
-	// TODO: добавить флаг deleted в бд на необходимую книгу
+	if err := s.storage.SetDeleteStatus(id); err != nil {
+		log.Error().Msg("user ID not found")
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "User ID not found"})
+		return
+	}
+	s.delChan <- struct{}{}
+	log.Debug().Int("chan len", len(s.delChan)).Msg("book send into delChan")
 	ctx.String(http.StatusOK, "book "+id+" was deleted")
+}
+
+func (s *Server) deleter(ctx context.Context) {
+	log := logger.Get()
+	defer log.Debug().Msg("deleter was ended")
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debug().Msg("deleter context done")
+			return
+		default:
+			if len(s.delChan) == cap(s.delChan) {
+				log.Debug().Int("cap", cap(s.delChan)).Int("len", cap(s.delChan)).Msg("start deleting")
+				for i := 0; i < cap(s.delChan); i++ {
+					<-s.delChan
+				}
+				if err := s.storage.DeleteBooks(); err != nil {
+					log.Error().Err(err).Msg("deleting books failed")
+					s.ErrChan <- err
+					return
+				}
+			}
+		}
+	}
 }
 
 func (s *Server) bookReturn(ctx *gin.Context) {}
