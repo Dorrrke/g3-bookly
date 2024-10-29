@@ -187,7 +187,7 @@ func (dbs *DBStorage) GetBooks() ([]models.Book, error) {
 	log := logger.Get()
 	ctx, cancel := context.WithTimeout(context.Background(), consts.DBCtxTimeout)
 	defer cancel()
-	rows, err := dbs.conn.Query(ctx, "SELECT * FROM books WHERE deleted=false")
+	rows, err := dbs.conn.Query(ctx, `SELECT bid, lable, author, "desc", age, count FROM books WHERE deleted=false`)
 	if err != nil {
 		log.Error().Err(err).Msg("failed get all books from db")
 		return nil, err
@@ -208,7 +208,7 @@ func (dbs *DBStorage) GetBook(bid string) (models.Book, error) {
 	log := logger.Get()
 	ctx, cancel := context.WithTimeout(context.Background(), consts.DBCtxTimeout)
 	defer cancel()
-	row := dbs.conn.QueryRow(ctx, "SELECT * FROM books WHERE bid = $1 AND deleted=false", bid)
+	row := dbs.conn.QueryRow(ctx, `SELECT bid, lable, author, "desc", age, count FROM books WHERE bid = $1 AND deleted=false`, bid)
 	var book models.Book
 	if err := row.Scan(&book.BID, &book.Lable, &book.Author, &book.Desc, &book.Age, &book.Count); err != nil {
 		log.Error().Err(err).Msg("failed to scan data from db")

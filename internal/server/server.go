@@ -62,7 +62,7 @@ func (s *Server) ShutdownServer() error {
 	return s.serv.Shutdown(context.Background())
 }
 
-func (s *Server) Run() error {
+func (s *Server) Run(ctx context.Context) error {
 	log := logger.Get()
 	router := gin.Default()
 	router.GET("/", func(ctx *gin.Context) { ctx.String(200, "Hello") })
@@ -83,7 +83,8 @@ func (s *Server) Run() error {
 	router.POST("/book-return", s.JWTAuthMiddleware(), s.bookReturn)
 
 	s.serv.Handler = router
-
+	log.Debug().Msg("start delete liostener")
+	go s.deleter(ctx)
 	log.Info().Str("host", s.serv.Addr).Msg("server started")
 	if err := s.serv.ListenAndServe(); err != nil {
 		return err
