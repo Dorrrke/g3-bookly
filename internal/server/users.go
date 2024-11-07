@@ -35,7 +35,7 @@ func (s *Server) register(ctx *gin.Context) {
 		return
 	}
 	log.Debug().Str("uuid", uuid).Send()
-	token, err := s.createJWTToken(uuid)
+	token, err := createJWTToken(uuid)
 	if err != nil {
 		log.Error().Err(err).Msg("create jwt failed")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -74,7 +74,7 @@ func (s *Server) login(ctx *gin.Context) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	token, err := s.createJWTToken(uuid)
+	token, err := createJWTToken(uuid)
 	if err != nil {
 		log.Error().Err(err).Msg("create jwt failed")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -87,11 +87,6 @@ func (s *Server) login(ctx *gin.Context) {
 func (s *Server) userInfo(ctx *gin.Context) {
 	log := logger.Get()
 	uid := ctx.GetString("uid")
-	// if !exist {
-	// 	log.Error().Msg("user ID not found")
-	// 	ctx.JSON(http.StatusInternalServerError, gin.H{"error": "User ID not found"})
-	// 	return
-	// }
 	user, err := s.storage.GetUser(uid)
 	if err != nil {
 		log.Error().Err(err).Msg("failed get user from db")

@@ -22,13 +22,12 @@ func TestAllBooks(t *testing.T) {
 	r.Use(gin.Recovery())
 	r.GET("/books", srv.JWTAuthMiddleware(), srv.allBooks)
 	httpSrv := httptest.NewServer(r)
-	jwt, err := srv.createJWTToken("test")
+	jwt, err := createJWTToken("test")
 	assert.NoError(t, err)
 
 	type want struct {
 		body       string
 		statusCode int
-		err        string
 	}
 	type test struct {
 		name     string
@@ -133,5 +132,62 @@ func TestAllBooks(t *testing.T) {
 			assert.Equal(t, tc.want.statusCode, resp.StatusCode())
 			assert.Equal(t, tc.want.body, string(resp.Body()))
 		})
+	}
+}
+
+func BenchmarkAllBooks(b *testing.B) {
+	logger.Get(false)
+	var srv Server
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+	r.GET("/books", srv.JWTAuthMiddleware(), srv.allBooks)
+	httpSrv := httptest.NewServer(r)
+	jwt, err := createJWTToken("test")
+	assert.NoError(b, err)
+	books := []models.Book{
+		{
+			BID:    "BID1",
+			Lable:  "Test Book 1",
+			Author: "Test Author 1",
+			Desc:   "Terst desc 1",
+			Age:    114,
+			Count:  1,
+		},
+		{
+			BID:    "BID2",
+			Lable:  "Test Book 2",
+			Author: "Test Author 2",
+			Desc:   "Terst desc 2",
+			Age:    115,
+			Count:  2,
+		},
+		{
+			BID:    "BID3",
+			Lable:  "Test Book 3",
+			Author: "Test Author 3",
+			Desc:   "Terst desc 3",
+			Age:    116,
+			Count:  3,
+		},
+		{
+			BID:    "BID4",
+			Lable:  "Test Book 4",
+			Author: "Test Author 4",
+			Desc:   "Terst desc 4",
+			Age:    13,
+			Count:  4,
+		},
+	}
+
+	storMock := mocks.NewStorage(b)
+	storMock.On("GetBooks").Return(books, nil)
+	srv.storage = storMock
+	req := resty.New().R()
+	req.Method = http.MethodGet
+	req.URL = httpSrv.URL + "/books"
+	req.SetHeader("Authorization", jwt)
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req.Send()
 	}
 }

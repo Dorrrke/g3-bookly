@@ -115,7 +115,7 @@ func (s *Server) JWTAuthMiddleware() gin.HandlerFunc {
 	}
 }
 
-func (s *Server) createJWTToken(uid string) (string, error) {
+func createJWTToken(uid string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
