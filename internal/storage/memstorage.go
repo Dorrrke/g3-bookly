@@ -117,3 +117,11 @@ func (ms *MemStorage) findBook(value models.Book) (models.Book, error) {
 	}
 	return models.Book{}, storerrros.ErrBookNoExist
 }
+
+func (ms *MemStorage) DeleteBooks() error {
+	return nil
+}
+
+func (ms *MemStorage) SetDeleteStatus(_ string) error {
+	return nil
+}

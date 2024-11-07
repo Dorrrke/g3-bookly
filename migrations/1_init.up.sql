@@ -12,5 +12,6 @@ CREATE TABLE IF NOT EXISTS books(
     author TEXT NOT NULL,
     "desc" TEXT NOT NULL,
     age integer NOT NULL,
-    count integer NOT NULL
+    count integer NOT NULL,
+    deleted BOOLEAN NOT NULL DEFAULT false
 );

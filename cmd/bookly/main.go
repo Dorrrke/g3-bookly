@@ -44,9 +44,13 @@ func main() {
 	serv := server.New(*cfg, stor)
 	group, gCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
-		return serv.Run()
+		return serv.Run(gCtx)
 	})
-
+	group.Go(func() error {
+		log.Debug().Msg("error chan listener started")
+		defer log.Debug().Msg("error chan listener - end")
+		return <-serv.ErrChan
+	})
 	group.Go(func() error {
 		<-gCtx.Done()
 		return serv.ShutdownServer()
