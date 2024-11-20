@@ -9,6 +9,7 @@ import (
 
 	"github.com/Dorrrke/g3-bookly/internal/config"
 	"github.com/Dorrrke/g3-bookly/internal/domain/models"
+	authgrpc "github.com/Dorrrke/g3-bookly/internal/grpc"
 	"github.com/Dorrrke/g3-bookly/internal/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator"
@@ -37,24 +38,26 @@ type Storage interface {
 }
 
 type Server struct {
-	serv    *http.Server
-	valid   *validator.Validate
-	storage Storage
-	delChan chan struct{}
-	ErrChan chan error
+	serv       *http.Server
+	valid      *validator.Validate
+	grpcServer authgrpc.AuthServiceClient
+	storage    Storage
+	delChan    chan struct{}
+	ErrChan    chan error
 }
 
-func New(cfg config.Config, stor Storage) *Server {
+func New(cfg config.Config, stor Storage, auth authgrpc.AuthServiceClient) *Server {
 	server := http.Server{
 		Addr: cfg.Addr,
 	}
 	valid := validator.New()
 	return &Server{
-		serv:    &server,
-		valid:   valid,
-		storage: stor,
-		delChan: make(chan struct{}, 10),
-		ErrChan: make(chan error),
+		serv:       &server,
+		valid:      valid,
+		storage:    stor,
+		grpcServer: auth,
+		delChan:    make(chan struct{}, 10),
+		ErrChan:    make(chan error),
 	}
 }
 

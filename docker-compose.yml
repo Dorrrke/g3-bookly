@@ -8,6 +8,19 @@ services:
     ports:
       - "5432:5432"
   
+  auth:
+    build:
+      context: /home/drke/reps/cource/g3-bookly-auth
+      dockerfile: Dockerfile
+    environment:
+      - DB_DSN=postgres://user:password@db:5432/course?sslmode=disable
+      - SERVER_HOST=0.0.0.0
+      - SERVER_PORT=9090
+    ports:
+      - "9090:9090"
+    depends_on:
+      - db
+
   app:
     # image: bookly:latest
     build: .
@@ -16,9 +29,11 @@ services:
       - SERVER_PORT=8080
       - DB_DSN=postgres://user:password@db:5432/course?sslmode=disable
       - MIGRATE_PATH=migrations
+      - AUTH_DSN=auth:9090
     ports:
     - "8080:8080"
     volumes:
       - "./migrations:/root/migrations"
     depends_on:
       - db
+      - auth

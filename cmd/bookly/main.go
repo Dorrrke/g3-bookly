@@ -8,10 +8,13 @@ import (
 	"syscall"
 
 	"github.com/Dorrrke/g3-bookly/internal/config"
+	authgrpc "github.com/Dorrrke/g3-bookly/internal/grpc"
 	"github.com/Dorrrke/g3-bookly/internal/logger"
 	"github.com/Dorrrke/g3-bookly/internal/server"
 	"github.com/Dorrrke/g3-bookly/internal/storage"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
@@ -41,7 +44,16 @@ func main() {
 		log.Error().Err(err).Msg("connecting to data base failed")
 		stor = storage.New()
 	}
-	serv := server.New(*cfg, stor)
+	conn, err := grpc.NewClient(cfg.AuthHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed grpc connect")
+	}
+
+	defer conn.Close()
+
+	client := authgrpc.NewAuthServiceClient(conn)
+
+	serv := server.New(*cfg, stor, client)
 	group, gCtx := errgroup.WithContext(ctx)
 	group.Go(func() error {
 		return serv.Run(gCtx)

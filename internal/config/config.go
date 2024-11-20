@@ -13,6 +13,7 @@ const (
 	defaultPort        = 8080
 	defaultDBDsn       = "postgres://user:password@localhost:5432/course?sslmode=disable"
 	defaultMigratePath = "migrations"
+	defaultAuthHost    = "localhost:9090"
 )
 
 type Config struct {
@@ -20,13 +21,15 @@ type Config struct {
 	Debug       bool
 	DBDsn       string
 	MigratePath string
+	AuthHost    string
 }
 
 func ReadConfig() (*Config, error) {
-	var host, dbDsn, migratePath string
+	var host, dbDsn, migratePath, authHost string
 	var port int
 	var debug bool
 	flag.StringVar(&host, "addr", defaultAddr, "flag to set the server startup host")
+	flag.StringVar(&authHost, "g", defaultAuthHost, "flag to set the auth service host")
 	flag.IntVar(&port, "port", defaultPort, "flag to set the server startup port")
 	flag.BoolVar(&debug, "debug", false, "flag to set Debug logger level")
 	flag.StringVar(&dbDsn, "db", defaultDBDsn, "database connection addres")
@@ -40,11 +43,13 @@ func ReadConfig() (*Config, error) {
 		return nil, err
 	}
 	dbDsn = cmp.Or(os.Getenv("DB_DSN"), dbDsn)
+	authHost = cmp.Or(os.Getenv("AUTH_DSN"), authHost)
 	migratePath = cmp.Or(os.Getenv("MIGRATE_PATH"), migratePath)
 	return &Config{
 		Addr:        fmt.Sprintf("%s:%d", host, port),
 		Debug:       debug,
 		DBDsn:       dbDsn,
 		MigratePath: migratePath,
+		AuthHost:    authHost,
 	}, nil
 }

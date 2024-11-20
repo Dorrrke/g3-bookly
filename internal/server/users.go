@@ -1,13 +1,17 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
 	"github.com/Dorrrke/g3-bookly/internal/domain/models"
+	authgrpc "github.com/Dorrrke/g3-bookly/internal/grpc"
 	"github.com/Dorrrke/g3-bookly/internal/logger"
 	storerrros "github.com/Dorrrke/g3-bookly/internal/storage/errros"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func (s *Server) register(ctx *gin.Context) {
@@ -23,26 +27,21 @@ func (s *Server) register(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	uuid, err := s.storage.SaveUser(user)
+	resp, err := s.grpcServer.Register(context.Background(), &authgrpc.UserRegister{
+		Login:    user.Email,
+		Password: user.Pass,
+		Age:      int32(user.Age),
+	})
 	if err != nil {
-		if errors.Is(err, storerrros.ErrUserExists) {
-			log.Error().Msg(err.Error())
-			ctx.String(http.StatusConflict, err.Error())
+		if status.Code(err) == codes.AlreadyExists {
+			ctx.JSON(http.StatusConflict, gin.H{"error": err.Error()})
 			return
 		}
-		log.Error().Err(err).Msg("save user failed")
+		log.Error().Err(err).Msg("register user failed")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
 	}
-	log.Debug().Str("uuid", uuid).Send()
-	token, err := createJWTToken(uuid)
-	if err != nil {
-		log.Error().Err(err).Msg("create jwt failed")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	ctx.Header("Authorization", token)
-	ctx.String(http.StatusCreated, uuid)
+	ctx.Header("Authorization", resp.GetToken())
+	ctx.String(http.StatusCreated, resp.GetMessage())
 }
 
 func (s *Server) login(ctx *gin.Context) {
@@ -58,30 +57,25 @@ func (s *Server) login(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	uuid, err := s.storage.ValidUser(user)
+	resp, err := s.grpcServer.Login(context.Background(), &authgrpc.User{
+		Login:    user.Email,
+		Password: user.Pass,
+	})
 	if err != nil {
-		if errors.Is(err, storerrros.ErrUserNoExist) {
-			log.Error().Err(err).Msg("user not found")
-			ctx.String(http.StatusNotFound, "invalid login or password: %w", err)
+		if status.Code(err) == codes.Unauthenticated {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 			return
 		}
-		if errors.Is(err, storerrros.ErrInvalidPassword) {
-			log.Error().Err(err).Msg("invalid pass")
-			ctx.String(http.StatusUnauthorized, err.Error())
+		if status.Code(err) == codes.InvalidArgument {
+			ctx.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
-		log.Error().Err(err).Msg("validate user failed")
+		log.Error().Err(err).Msg("login user failed")
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
 	}
-	token, err := createJWTToken(uuid)
-	if err != nil {
-		log.Error().Err(err).Msg("create jwt failed")
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	ctx.Header("Authorization", token)
-	ctx.String(200, "user %s are logined", uuid)
+
+	ctx.Header("Authorization", resp.GetToken())
+	ctx.String(200, resp.GetMessage())
 }
 
 func (s *Server) userInfo(ctx *gin.Context) {
