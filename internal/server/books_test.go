@@ -79,11 +79,7 @@ func TestAllBooks(t *testing.T) {
 			request: "/books",
 			jwt:     jwt,
 			want: want{
-				body: `[
-				{"bid":"BID1","lable":"Test Book 1","author":"Test Author 1","desc":"Terst desc 1","age":114,"count":1},
-				{"bid":"BID2","lable":"Test Book 2","author":"Test Author 2","desc":"Terst desc 2","age":115,"count":2},
-				{"bid":"BID3","lable":"Test Book 3","author":"Test Author 3","desc":"Terst desc 3","age":116,"count":3},
-				{"bid":"BID4","lable":"Test Book 4","author":"Test Author 4","desc":"Terst desc 4","age":13,"count":4}]`,
+				body:       `[{"bid":"BID1","lable":"Test Book 1","author":"Test Author 1","desc":"Terst desc 1","age":114,"count":1},{"bid":"BID2","lable":"Test Book 2","author":"Test Author 2","desc":"Terst desc 2","age":115,"count":2},{"bid":"BID3","lable":"Test Book 3","author":"Test Author 3","desc":"Terst desc 3","age":116,"count":3},{"bid":"BID4","lable":"Test Book 4","author":"Test Author 4","desc":"Terst desc 4","age":13,"count":4}]`,
 				statusCode: http.StatusOK,
 			},
 		},
