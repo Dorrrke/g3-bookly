@@ -46,7 +46,7 @@ func (ms *MemStorage) ValidUser(user models.User) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := bcrypt.CompareHashAndPassword([]byte(memUser.Pass), []byte(user.Pass)); err != nil {
+	if err = bcrypt.CompareHashAndPassword([]byte(memUser.Pass), []byte(user.Pass)); err != nil {
 		return "", storerrros.ErrInvalidPassword
 	}
 	return memUser.UID, nil
@@ -75,7 +75,7 @@ func (ms *MemStorage) SaveBook(book models.Book) error {
 	return nil
 }
 
-func (ms *MemStorage) SaveBooks(books []models.Book) error {
+func (ms *MemStorage) SaveBooks(_ []models.Book) error {
 	return nil
 }
 

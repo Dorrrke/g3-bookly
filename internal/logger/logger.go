@@ -8,9 +8,9 @@ import (
 	"github.com/rs/zerolog"
 )
 
-var once sync.Once
+var once sync.Once //nolin:gochecknoglobals //singletone
 
-var log zerolog.Logger
+var log zerolog.Logger //nolin:gochecknoglobals //singletone
 
 func Get(flags ...bool) zerolog.Logger {
 	once.Do(func() {

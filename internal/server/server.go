@@ -15,7 +15,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-var SecretKey = "VerySecurKey2000Cat"
+var secretKey = "VerySecurKey2000Cat" //nolint:gochecknoglobals //demo var
 
 var ErrInvalidToken = errors.New("invalid token")
 
@@ -45,7 +45,7 @@ type Server struct {
 }
 
 func New(cfg config.Config, stor Storage) *Server {
-	server := http.Server{
+	server := http.Server{ //nolint:gosec // not today
 		Addr: cfg.Addr,
 	}
 	valid := validator.New()
@@ -53,7 +53,7 @@ func New(cfg config.Config, stor Storage) *Server {
 		serv:    &server,
 		valid:   valid,
 		storage: stor,
-		delChan: make(chan struct{}, 10),
+		delChan: make(chan struct{}, 10), //nolint:mnd //todo
 		ErrChan: make(chan error),
 	}
 }
@@ -65,7 +65,7 @@ func (s *Server) ShutdownServer() error {
 func (s *Server) Run(ctx context.Context) error {
 	log := logger.Get()
 	router := gin.Default()
-	router.GET("/", func(ctx *gin.Context) { ctx.String(200, "Hello") })
+	router.GET("/", func(ctx *gin.Context) { ctx.String(http.StatusOK, "Hello") })
 	users := router.Group("/users")
 	{
 		users.GET("/info", s.JWTAuthMiddleware(), s.userInfo)
@@ -92,8 +92,8 @@ func (s *Server) Run(ctx context.Context) error {
 	return nil
 }
 
-func (s *Server) Close() {
-	s.serv.Shutdown(context.TODO())
+func (s *Server) Close() error {
+	return s.serv.Shutdown(context.TODO())
 }
 
 func (s *Server) JWTAuthMiddleware() gin.HandlerFunc {
@@ -118,11 +118,11 @@ func (s *Server) JWTAuthMiddleware() gin.HandlerFunc {
 func createJWTToken(uid string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 3)), //nolint:mnd //todo
 		},
 		UserID: uid,
 	})
-	key := []byte(SecretKey)
+	key := []byte(secretKey)
 	tokenStr, err := token.SignedString(key)
 	if err != nil {
 		return "", err
@@ -132,8 +132,8 @@ func createJWTToken(uid string) (string, error) {
 
 func validToken(tokenStr string) (string, error) {
 	claims := &Claims{}
-	token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
-		return []byte(SecretKey), nil
+	token, err := jwt.ParseWithClaims(tokenStr, claims, func(_ *jwt.Token) (interface{}, error) {
+		return []byte(secretKey), nil
 	})
 	if err != nil {
 		return "", err

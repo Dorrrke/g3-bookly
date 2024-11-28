@@ -81,7 +81,7 @@ func (s *Server) login(ctx *gin.Context) {
 		return
 	}
 	ctx.Header("Authorization", token)
-	ctx.String(200, "user %s are logined", uuid)
+	ctx.String(http.StatusOK, "user %s are logined", uuid)
 }
 
 func (s *Server) userInfo(ctx *gin.Context) {

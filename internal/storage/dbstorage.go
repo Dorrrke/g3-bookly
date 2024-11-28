@@ -10,8 +10,6 @@ import (
 	"github.com/Dorrrke/g3-bookly/internal/logger"
 	storerrros "github.com/Dorrrke/g3-bookly/internal/storage/errros"
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/google/uuid"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
@@ -103,8 +101,8 @@ func (dbs *DBStorage) SaveBook(book models.Book) error {
 		WHERE lable=$1 AND author=$2`, book.Lable, book.Author).Scan(&bid, &count)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			bid := uuid.New().String()
-			_, err := dbs.conn.Exec(ctx,
+			bid = uuid.New().String()
+			_, err = dbs.conn.Exec(ctx,
 				`INSERT INTO books (bid, lable, author, "desc", age, count) 
 				VALUES ($1, $2, $3, $4, $5, $6)`,
 				bid, book.Lable, book.Author, book.Desc, book.Age, book.Count)
@@ -135,7 +133,11 @@ func (dbs *DBStorage) SaveBooks(books []models.Book) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		if err = tx.Rollback(ctx); err != nil {
+			log.Error().Err(err).Send()
+		}
+	}()
 	_, err = tx.Prepare(ctx, "saveBook", `SELECT bid, count FROM books 
 		WHERE lable=$1 AND author=$2`)
 	if err != nil {
@@ -157,12 +159,12 @@ func (dbs *DBStorage) SaveBooks(books []models.Book) error {
 		var bid string
 		var count int
 		log.Debug().Msgf("search book %s %s", book.Author, book.Lable)
-		err := tx.QueryRow(ctx, "saveBook", book.Lable, book.Author).Scan(&bid, &count)
+		err = tx.QueryRow(ctx, "saveBook", book.Lable, book.Author).Scan(&bid, &count)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				bid := uuid.New().String()
-				count := 1
-				_, err := tx.Exec(ctx, `insertBook`,
+				bid = uuid.New().String()
+				count = 1
+				_, err = tx.Exec(ctx, `insertBook`,
 					bid, book.Lable, book.Author, book.Desc, book.Age, count)
 				if err != nil {
 					log.Error().Err(err).Msg("save book failed")
@@ -195,7 +197,7 @@ func (dbs *DBStorage) GetBooks() ([]models.Book, error) {
 	var books []models.Book
 	for rows.Next() {
 		var book models.Book
-		if err := rows.Scan(&book.BID, &book.Lable, &book.Author, &book.Desc, &book.Age, &book.Count); err != nil {
+		if err = rows.Scan(&book.BID, &book.Lable, &book.Author, &book.Desc, &book.Age, &book.Count); err != nil {
 			log.Error().Err(err).Msg("failed to scan data from db")
 			return nil, err
 		}
@@ -208,7 +210,8 @@ func (dbs *DBStorage) GetBook(bid string) (models.Book, error) {
 	log := logger.Get()
 	ctx, cancel := context.WithTimeout(context.Background(), consts.DBCtxTimeout)
 	defer cancel()
-	row := dbs.conn.QueryRow(ctx, `SELECT bid, lable, author, "desc", age, count FROM books WHERE bid = $1 AND deleted=false`, bid)
+	row := dbs.conn.QueryRow(ctx,
+		`SELECT bid, lable, author, "desc", age, count FROM books WHERE bid = $1 AND deleted=false`, bid)
 	var book models.Book
 	if err := row.Scan(&book.BID, &book.Lable, &book.Author, &book.Desc, &book.Age, &book.Count); err != nil {
 		log.Error().Err(err).Msg("failed to scan data from db")
@@ -238,7 +241,11 @@ func (dbs *DBStorage) DeleteBooks() error {
 		log.Error().Err(err).Msg("failed to start tx")
 		return err
 	}
-	defer tx.Rollback(ctx)
+	defer func() {
+		if err = tx.Rollback(ctx); err != nil {
+			log.Error().Err(err).Send()
+		}
+	}()
 	if _, err = tx.Exec(ctx, "DELETE FROM books WHERE deleted=true"); err != nil {
 		log.Error().Err(err).Msg("delete books failed")
 		return err
@@ -253,7 +260,7 @@ func Migrations(dbDsn string, migrationsPath string) error {
 	if err != nil {
 		return err
 	}
-	if err := m.Up(); err != nil {
+	if err = m.Up(); err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
 			log.Info().Msg("no mirations apply")
 			return nil
