@@ -104,13 +104,13 @@ func (s *Server) JWTAuthMiddleware() gin.HandlerFunc {
 			ctx.String(http.StatusUnauthorized, "invalid token")
 			return
 		}
-		UID, err := validToken(toketn)
+		uid, err := validToken(toketn)
 		if err != nil {
 			log.Error().Err(err).Msg("validate jwt failed")
 			ctx.String(http.StatusUnauthorized, "invalid token")
 			return
 		}
-		ctx.Set("uid", UID)
+		ctx.Set("uid", uid)
 		ctx.Next()
 	}
 }
