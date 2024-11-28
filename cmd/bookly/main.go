@@ -33,7 +33,7 @@ func main() {
 	log.Debug().Any("cfg", cfg).Send()
 	var stor server.Storage
 
-	if err := storage.Migrations(cfg.DBDsn, cfg.MigratePath); err != nil {
+	if err = storage.Migrations(cfg.DBDsn, cfg.MigratePath); err != nil {
 		log.Fatal().Err(err).Msg("migrations failed")
 	}
 	stor, err = storage.NewDB(context.TODO(), cfg.DBDsn)
