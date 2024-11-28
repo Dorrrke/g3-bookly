@@ -127,7 +127,7 @@ func (s *Server) deleter(ctx context.Context) {
 		default:
 			if len(s.delChan) == cap(s.delChan) {
 				log.Debug().Int("cap", cap(s.delChan)).Int("len", cap(s.delChan)).Msg("start deleting")
-				for i := 0; i < cap(s.delChan); i++ {
+				for i := 0; i < cap(s.delChan); i++ { //nolint:intrange //todo
 					<-s.delChan
 				}
 				if err := s.storage.DeleteBooks(); err != nil {
@@ -140,4 +140,4 @@ func (s *Server) deleter(ctx context.Context) {
 	}
 }
 
-func (s *Server) bookReturn(ctx *gin.Context) {}
+func (s *Server) bookReturn(_ *gin.Context) {}

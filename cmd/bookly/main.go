@@ -11,6 +11,8 @@ import (
 	"github.com/Dorrrke/g3-bookly/internal/logger"
 	"github.com/Dorrrke/g3-bookly/internal/server"
 	"github.com/Dorrrke/g3-bookly/internal/storage"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -33,7 +35,7 @@ func main() {
 	log.Debug().Any("cfg", cfg).Send()
 	var stor server.Storage
 
-	if err := storage.Migrations(cfg.DBDsn, cfg.MigratePath); err != nil {
+	if err = storage.Migrations(cfg.DBDsn, cfg.MigratePath); err != nil {
 		log.Fatal().Err(err).Msg("migrations failed")
 	}
 	stor, err = storage.NewDB(context.TODO(), cfg.DBDsn)
@@ -56,7 +58,7 @@ func main() {
 		return serv.ShutdownServer()
 	})
 
-	if err := group.Wait(); err != nil {
+	if err = group.Wait(); err != nil {
 		log.Info().Str("stoping reason", err.Error()).Msg("Server stoped")
 		return
 	}
